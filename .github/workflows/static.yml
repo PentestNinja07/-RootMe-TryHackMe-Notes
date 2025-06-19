@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rootme Machine Notes - TryHackMe</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f7f9fc;
+      color: #222;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px 60px;
+      line-height: 1.6;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    code {
+      background: #eaeaea;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+      font-size: 0.95em;
+    }
+    pre {
+      background: #272822;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 15px 0;
+      font-size: 0.9em;
+    }
+    blockquote {
+      border-left: 4px solid #4285f4;
+      padding-left: 15px;
+      color: #555;
+      font-style: italic;
+      margin: 20px 0;
+    }
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 20px;
+    }
+    .note {
+      background-color: #e8f0fe;
+      border-left: 6px solid #4285f4;
+      padding: 12px 20px;
+      margin: 20px 0;
+      border-radius: 5px;
+      font-weight: 600;
+    }
+    .emoji {
+      font-size: 1.2em;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Rootme Machine Notes 📝</h1>
+
+  <h2>🔗 Connect to TryHackMe Network</h2>
+  <p>As usual, first connect to the <strong>TryHackMe VPN network</strong> to access the target machine.</p>
+
+  <h2>🕵️‍♂️ Nmap Scan</h2>
+  <p>Run an aggressive Nmap scan to discover open ports, services, versions, and operating system:</p>
+  <pre>nmap -T5 -O -sV 10.10.145.133 -oN nmap.results</pre>
+
+  <h3>What the options mean:</h3>
+  <ul>
+    <li><code>-T5</code> → Max speed, aggressive timing for faster scanning</li>
+    <li><code>-O</code> → Enable OS detection</li>
+    <li><code>-sV</code> → Service version detection (important to find vulnerabilities related to specific versions)</li>
+    <li><code>-oN</code> → Save output in normal, human-readable format</li>
+  </ul>
+
+  <h3>📂 Optional Output Formats:</h3>
+  <p>You can also save the output in different formats for easier parsing or automation:</p>
+  <ul>
+    <li>Grepable format: <code>-oG nmap.grep</code></li>
+    <li>XML format: <code>-oX nmap.xml</code></li>
+    <li>Script Kiddie format: <code>-oS nmap.script</code></li>
+    <li>All formats at once: <code>-oA allformats</code></li>
+  </ul>
+
+  <div class="note">
+    💡 <strong>Always use <code>-sV</code> option</strong> — vulnerabilities are usually version-specific, so getting the exact service version is crucial for exploitation.
+  </div>
+
+  <h2>🔍 Directory Brute Forcing</h2>
+  <p>Run directory brute forcing tools like <code>dirbuster</code> or <code>gobuster</code> to find hidden directories on the web server.</p>
+  <p>After scanning, check the website carefully:</p>
+  <ul>
+    <li>Review the source code of every page.</li>
+    <li>Look for important files like <code>robots.txt</code> that might reveal sensitive directories.</li>
+  </ul>
+
+  <p>We found a <code>/panel/</code> directory from directory brute forcing.</p>
+
+  <h2>🐚 Uploading Reverse Shell</h2>
+  <p>Inside the <code>/panel/</code> directory, we want to upload a reverse shell to get access to the server.</p>
+
+  <h3>Why PHP reverse shell?</h3>
+  <ul>
+    <li>PHP files are executed by the Apache web server, so the shell script can run on the server.</li>
+    <li>Uploading an <code>.exe</code> file won't work because browsers and servers cannot interpret it as code.</li>
+    <li>We have to upload files that the server understands and executes, like PHP.</li>
+  </ul>
+
+  <h3>Bypassing PHP Upload Restrictions</h3>
+  <p>Often, servers block uploading files with <code>.php</code> extension directly to prevent exploits.</p>
+  <p>You can try these techniques:</p>
+  <ul>
+    <li>Change the file extension to <code>.php3</code>, <code>.php4</code>, or <code>.php5</code> — sometimes older PHP extensions are allowed.</li>
+    <li>Upload bypass — if the server uses blacklist filtering (blocks certain extensions like php, js) instead of whitelist (only allows specific safe extensions like png), these extensions might get through.</li>
+  </ul>
+
+  <p>Use a PHP reverse shell script from <a href="https://pentestmonkey.net/cheat-sheet/shells/reverse-shell" target="_blank" rel="noopener noreferrer">PentestMonkey</a>.</p>
+
+  <p>Don’t forget to update the IP address and port in the reverse shell PHP file with your TryHackMe VPN IP and the port you will listen on.</p>
+
+  <h2>🛠 Upload and Execute Reverse Shell</h2>
+  <p>Upload the modified PHP reverse shell to the <code>/panel/</code> directory.</p>
+  <p>Before executing the shell via browser, start a listener on your Kali machine:</p>
+
+  <h3>Netcat Listener Command:</h3>
+  <pre>nc -lvnp 4444</pre>
+
+  <h3>Explanation of netcat options:</h3>
+  <ul>
+    <li><code>-n</code>: No DNS resolution for faster, cleaner output</li>
+    <li><code>-l</code>: Listen mode (waits for incoming connections)</li>
+    <li><code>-v</code>: Verbose mode (shows connection info)</li>
+    <li><code>-p 4444</code>: Listen on port 4444</li>
+  </ul>
+
+  <p>When running, netcat will listen on all interfaces <code>0.0.0.0</code>, meaning it accepts connections from:</p>
+  <ul>
+    <li>Localhost (<code>127.0.0.1</code>)</li>
+    <li>Your TryHackMe VPN interface (like <code>tun0</code>)</li>
+    <li>Any other IP your machine has</li>
+  </ul>
+
+  <h2>🎉 Got the shell!</h2>
+  <p>Once you access the URL of the uploaded shell in your browser, it connects back to your Kali machine's netcat listener, and you get a remote shell on the server.</p>
+
+  <h2>🗂 Manual Enumeration</h2>
+  <p>Start manually exploring the filesystem for interesting files:</p>
+  <ul>
+    <li>Look for sensitive files with credentials.</li>
+    <li>Look for flags to complete the challenge.</li>
+  </ul>
+
+  <p>The first flag was found in <code>/var/www</code>.</p>
+
+  <h2>🔐 SUID Bit - Common Privilege Escalation Method</h2>
+  <p><strong>SUID</strong> stands for <em>Set User ID</em>. It's a special permission that can be set on executable files.</p>
+  <p>When a file has the SUID bit set, it runs with the permissions of the file's owner instead of the user running it.</p>
+  <p>If the file owner is <code>root</code>, then the program runs as root, no matter who executes it. This can be used by attackers to escalate privileges.</p>
+
+  <h3>Find all SUID files on the system:</h3>
+  <pre>find / -perm -4000 -type f 2>/dev/null</pre>
+
+  <ul>
+    <li><code>find /</code>: search entire filesystem starting at root</li>
+    <li><code>-perm -4000</code>: find files with the SUID bit set</li>
+    <li><code>-type f</code>: only search files, not directories</li>
+    <li><code>2>/dev/null</code>: suppress permission denied errors for inaccessible folders</li>
+  </ul>
+
+  <h3>Example output:</h3>
+  <pre>/usr/bin/python</pre>
+
+  <p>This means the Python executable has the SUID bit set, and because it’s owned by root, running Python runs with root privileges.</p>
+
+  <h2>⚡ Exploit SUID Python to get Root Shell</h2>
+  <p>Run this command to spawn a root shell:</p>
+  <pre>python -c 'import os; os.execl("/bin/sh", "sh", "-p")'</pre>
+
+  <ul>
+    <li><code>python -c</code>: run python code directly from command line</li>
+    <li><code>import os</code>: import the OS module</li>
+    <li><code>os.execl("/bin/sh", "sh", "-p")</code>: start a new shell (<code>/bin/sh</code>) with preserved privileges (-p)</li>
+  </ul>
+
+  <p>Because the Python binary has SUID and runs as root, this new shell also runs as root — giving you root access to the machine!</p>
+
+  <hr />
+  <p><em>Note: All activities described here are done on a virtual lab environment provided by TryHackMe for educational and revision purposes only. No real machines were harmed or attacked.</em></p>
+
+  <footer style="text-align:center; margin-top: 40px; color: #666;">
+    &copy; 2025 - Rootme Machine Notes | Created for Learning & Practice
+  </footer>
+</body>
+</html>
