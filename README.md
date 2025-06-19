@@ -1,165 +1,184 @@
-# -RootMe-TryHackMe-Notes
- Comprehensive walkthrough and practical notes for the RootMe machine on TryHackMe, focusing on enumeration, exploitation, and privilege escalation.
-## 🚀 Step 1: Connect to TryHackMe VPN  
-Before starting, **always connect to the TryHackMe VPN** to access the target network securely.  
-Without VPN, your machine won’t be able to reach the target IP.
+ 🛠️ Rootme Machine Notes - TryHackMe
+
+> These are my detailed notes from solving the **Rootme** machine on TryHackMe.  
+> This work was done in a **virtual lab environment for learning and practice only**.  
+> No unauthorized systems were accessed.
 
 ---
 
-## 🔍 Step 2: Nmap Scan - Discover Open Ports & Services
+## 🌐 Step 1: Connect to TryHackMe VPN Network
 
-Run a detailed and fast Nmap scan with:
+To interact with the TryHackMe machines, first connect to their VPN network.  
+This connection allows your computer to reach the isolated lab environment where the target machine (`10.10.145.133`) is hosted.
+
+----
+
+## 🔍 Step 2: Nmap Scan to Discover Open Ports and Services
+
+Run the following command to scan the target:
 
 
 nmap -T5 -O -sV 10.10.145.133 -oN nmap.results
 
-What do these options mean?
+What does each option mean?
 
-    -T5: Maximum speed, aggressive timing for faster scan
+    -T5 — Use the fastest scanning speed (aggressive timing). This speeds up the scan but may increase the chance of detection.
 
-    -O: Operating system detection
+    -O — Enable operating system detection, so Nmap tries to guess what OS the target is running.
 
-    -sV: Service version detection — crucial for finding version-specific vulnerabilities
+    -sV — Service version detection. This tells you exactly what service is running on each open port and its version number.
 
-    -oN: Save output in a readable format for later review
+    -oN — Save the scan output in a normal human-readable format to a file named nmap.results.
 
-Optional output formats:
+Why use -sV?
 
-You can also save scans in different formats to use with other tools or scripts:
-Format	Option	Purpose
-Grepable	-oG nmap.grep	Easy to grep through results
-XML	-oX nmap.xml	Structured output for tools
-Script Kiddie	-oS nmap.script	Funny but rarely used format
-All formats	-oA allformats	Saves all above formats
+Because vulnerabilities depend on specific versions of software. Knowing the exact version helps find applicable exploits.
+📂 Optional Nmap Output Formats
 
-    💡 Pro tip: Always use -sV! Vulnerabilities are often specific to service versions.
+Nmap supports different output formats for different purposes:
 
-🔐 Step 3: Directory Brute-Forcing for Hidden Paths
+    -oG — Grepable format. Easier to search with tools like grep.
 
-Use tools like Dirbuster or Gobuster to discover hidden directories or files on the webserver.
+    -oX — XML format. Used for automated tools and parsing.
 
-gobuster dir -u http://10.10.145.133 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+    -oS — Script Kiddie format. Mostly for fun, not used seriously.
 
-Why?
+    -oA — Saves all output types at once.
 
-Many websites hide admin panels or important files under non-obvious paths — brute forcing helps find these.
-📂 Step 4: Analyze Website & Check robots.txt
+🗂️ Step 3: Directory Bruteforcing to Find Hidden Paths
 
-Visit the site in your browser:
+Web applications often have hidden directories that are not linked anywhere but contain important resources.
 
-http://10.10.145.133
+Use tools like Dirbuster or Gobuster to brute force directories:
 
-Check /robots.txt:
+gobuster dir -u http://10.10.145.133 -w /usr/share/wordlists/dirb/common.txt
 
-http://10.10.145.133/robots.txt
+Look for directories that might give you entry points. Here, /panel/ was discovered.
+🖥️ Step 4: Analyze Website and Source Code
 
-Developers sometimes list disallowed directories here, which may contain sensitive files or hints.
-🛠️ Step 5: Found /panel/ Directory - Upload Reverse Shell
+Visit the discovered /panel/ URL. Look at:
+
+    The page source for hidden comments or credentials.
+
+    The robots.txt file (e.g., http://10.10.145.133/robots.txt), which might reveal directories the admin doesn’t want crawled but could be interesting to us.
+
+🐚 Step 5: Upload PHP Reverse Shell to Gain Server Access
+
+To take control of the server, upload a reverse shell script. A reverse shell connects back from the server to your machine, letting you run commands remotely.
 Why PHP reverse shell?
 
-    PHP files are executed by the web server (Apache).
+    The server runs an Apache web server that understands and executes .php files.
 
-    Executables like .exe won’t run in a web environment.
+    Uploading .exe or other binaries won't work because browsers and servers won't run them.
 
-    Other scripting files like JavaScript often get blocked or are client-side only.
+    PHP scripts are executed by the server, so a PHP shell can run commands for you.
 
-Important: Bypass PHP Upload Restrictions
+🚧 Step 6: Bypass File Upload Restrictions
 
-Often, .php uploads are blocked (blacklisted). You can try:
+Most servers block uploading .php files for security.
 
-    Changing extension to .php3, .php4, .php5 (older PHP versions accepted by server).
+Try to:
 
-    This bypasses blacklist filtering since it’s based on extension blocking, not whitelist.
+    Rename your file to .php3, .php4, or .php5 — older PHP extensions that may bypass filters.
 
-🐚 Step 6: Prepare PHP Reverse Shell
+    Servers might blacklist .php extensions but allow others, rather than strictly whitelisting allowed file types.
 
-    Download PHP reverse shell from PentestMonkey
+This trick can let your reverse shell file upload successfully.
+🔌 Step 7: Prepare PHP Reverse Shell Script
 
-    Change the IP and port to your TryHackMe VPN IP and listening port (4444 recommended).
+Get the PHP reverse shell script from PentestMonkey.
 
-    Upload your modified shell file to /panel/.
+Edit the script:
 
-📡 Step 7: Start Netcat Listener
+    Replace the IP (LHOST) with your TryHackMe VPN IP.
 
-Open your terminal and run:
+    Replace the port (LPORT) with your listening port (e.g., 4444).
+
+📡 Step 8: Start Netcat Listener
+
+Before triggering the shell, listen on your machine for the incoming connection:
 
 nc -lvnp 4444
 
-Explanation:
+What do the flags mean?
 
-    n: No DNS lookup (faster output)
+    l — Listen mode (wait for connections).
 
-    l: Listen mode (wait for incoming connection)
+    v — Verbose output (show connection details).
 
-    v: Verbose mode (show details)
+    n — No DNS resolution (faster output).
 
-    p 4444: Listen on port 4444
+    p 4444 — Listen on port 4444.
 
-💥 Step 8: Trigger the Reverse Shell
+0.0.0.0 means listen on all network interfaces (VPN, localhost, etc.).
+🎉 Step 9: Execute the Reverse Shell
 
-Visit the URL where your shell is uploaded:
+Browse to the uploaded reverse shell URL:
 
-http://10.10.145.133/panel/<your_shell_filename>
+http://10.10.145.133/panel/shell.php3
 
-If everything works, you’ll get a shell prompt on your Netcat listener — you now have command execution on the server!
-🔎 Step 9: Manual Enumeration on Target Server
+When accessed, the PHP script connects back to your machine, giving you shell access.
+🔎 Step 10: Manual Enumeration on the Server
 
-Explore the file system to find:
+Once you have shell access, explore the system manually:
 
-    Credentials
+    Look for sensitive files containing credentials or flags.
 
-    Flags
+    Check common directories like /var/www for web content or hidden files.
 
-    Useful files for privilege escalation
+🔼 Step 11: Find SUID Binaries for Privilege Escalation
 
-Start by checking /var/www for the first flag.
-🔒 Step 10: Privilege Escalation Using SUID Binaries
-What is SUID?
+SUID (Set User ID) allows executables to run with the file owner's permissions, often root.
 
-SUID (Set User ID) is a special permission allowing executables to run with the file owner’s privileges (often root).
+Attackers use SUID files to escalate privileges.
 
-Attackers scan for SUID binaries to escalate privileges.
-🔍 Step 11: Find SUID Files
-
-Run:
+Find all SUID files:
 
 find / -perm -4000 -type f 2>/dev/null
 
-    Searches entire system for files with SUID bit set.
+    find / — Search entire system.
 
-    Suppresses permission denied errors.
+    -perm -4000 — Files with SUID bit set.
 
-⚠️ Step 12: Example SUID Exploit - Python
+    -type f — Only files.
 
-If /usr/bin/python has SUID root permissions, run:
+    2>/dev/null — Hide errors.
+
+🐍 Step 12: Exploit SUID Python to Get Root Shell
+
+If /usr/bin/python has SUID bit and is root-owned, run:
 
 python -c 'import os; os.execl("/bin/sh", "sh", "-p")'
 
-This spawns a root shell because Python inherits root permissions.
-✅ Summary & Key Takeaways
+Explanation:
 
-    Always scan with nmap -sV to find versions — essential for exploits.
+    python -c — Run Python code passed as a string.
 
-    Use directory brute forcing to uncover hidden paths like /panel/.
+    import os — Import OS module.
 
-    PHP reverse shell is preferred for web server exploitation; try extension bypasses.
+    os.execl("/bin/sh", "sh", "-p") — Execute shell with preserved privileges.
 
-    Netcat listener must be running before triggering the shell.
+Because Python runs with root privileges (due to SUID), this launches a root shell.
+⚠️ Important Notes
 
-    Manually explore server for flags and sensitive files.
+    Always use -sV with Nmap to find service versions for better exploit targeting.
 
-    SUID binaries are common privilege escalation vectors.
+    File upload bypasses depend on the server’s blocking strategy (blacklist vs whitelist).
 
-    Exploit SUID Python to gain root shell quickly if available.
+    SUID binaries are a critical part of privilege escalation.
 
-📚 Resources
+    This work was done in a controlled lab for learning.
+
+🏁 Summary Commands
+
+nmap -T5 -O -sV 10.10.145.133 -oN nmap.results
+gobuster dir -u http://10.10.145.133 -w /usr/share/wordlists/dirb/common.txt
+find / -perm -4000 -type f 2>/dev/null
+nc -lvnp 4444
+python -c 'import os; os.execl("/bin/sh", "sh", "-p")'
+
+ References
+
+    TryHackMe Rootme Room
 
     PentestMonkey PHP Reverse Shell
-
-    TryHackMe
-
-    Nmap Official Documentation
-
-    Gobuster GitHub
-
-Happy Hacking! 🕵️‍♂️🔐
